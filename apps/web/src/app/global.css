@@ -1,0 +1,235 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: #101827;
+  background: #fbfaf7;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.nav-button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 14px;
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: #475467;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.nav-button:hover,
+.nav-button-active {
+  background: #fff4ec;
+  color: #f05200;
+}
+
+.icon-button {
+  display: grid;
+  height: 44px;
+  width: 44px;
+  place-items: center;
+  border-radius: 8px;
+  color: #1f2a44;
+  transition: background 160ms ease;
+}
+
+.icon-button:hover {
+  background: #fff4ec;
+}
+
+.primary-button,
+.secondary-button,
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 7px;
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 700;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.primary-button {
+  min-height: 44px;
+  background: #f75a00;
+  color: white;
+  box-shadow: 0 8px 20px rgba(247, 90, 0, 0.18);
+}
+
+.primary-button:hover {
+  background: #e24f00;
+  transform: translateY(-1px);
+}
+
+.secondary-button {
+  min-height: 44px;
+  border: 1px solid #ff6a1a;
+  background: white;
+  color: #f05200;
+}
+
+.secondary-button:hover {
+  background: #fff4ec;
+}
+
+.danger-button {
+  min-height: 44px;
+  justify-content: center;
+  border: 1px solid #ff5d5d;
+  background: white;
+  color: #f01818;
+}
+
+.danger-button:hover {
+  background: #fff1f1;
+}
+
+.control {
+  height: 44px;
+  border-radius: 7px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  padding: 0 16px;
+  color: #101827;
+  outline: none;
+  transition:
+    border 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.control:focus {
+  border-color: #ff5a00;
+  box-shadow: 0 0 0 4px rgba(255, 90, 0, 0.08);
+}
+
+.legend-line {
+  display: inline-block;
+  height: 2px;
+  width: 28px;
+  border-radius: 999px;
+}
+
+.legend-family {
+  background: #0f7cff;
+}
+
+.legend-friend {
+  border-top: 2px dashed #16a34a;
+}
+
+.legend-social {
+  border-top: 2px dashed #8b5cf6;
+}
+
+.graph-node {
+  position: absolute;
+  display: grid;
+  width: 150px;
+  translate: -50% -50%;
+  place-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  color: #101827;
+  text-align: center;
+  transition:
+    transform 160ms ease,
+    color 160ms ease;
+}
+
+.graph-node:hover {
+  transform: translateY(-2px);
+}
+
+.graph-node strong {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.graph-node span:not(:first-child) {
+  border-radius: 999px;
+  background: #dff0ff;
+  padding: 5px 16px;
+  color: #0068d9;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.graph-node-active {
+  z-index: 2;
+  color: #0f172a;
+}
+
+.graph-node-active > span:first-child {
+  border-color: #ff5a00 !important;
+  box-shadow: 0 0 0 7px rgba(255, 90, 0, 0.16);
+}
+
+.edge-label {
+  display: grid;
+  height: 28px;
+  min-width: 76px;
+  place-items: center;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.canvas-tool {
+  display: grid;
+  height: 42px;
+  width: 42px;
+  place-items: center;
+  color: #1f2a44;
+}
+
+.canvas-tool + .canvas-tool {
+  border-top: 1px solid #e5e7eb;
+}
+
+.canvas-tool:hover {
+  background: #fff4ec;
+  color: #f05200;
+}
+
+@media (max-width: 768px) {
+  .primary-button,
+  .secondary-button {
+    padding: 0 12px;
+  }
+
+  .primary-button span,
+  .secondary-button span {
+    display: none;
+  }
+}

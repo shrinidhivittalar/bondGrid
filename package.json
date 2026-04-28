@@ -1,0 +1,50 @@
+{
+  "name": "bond_grid",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "api:serve": "nx run @bond_grid/api:serve",
+    "api:build": "nx run @bond_grid/api:build",
+    "web:serve": "nx run web:serve",
+    "web:build": "nx run web:build",
+    "lint": "nx run-many -t lint"
+  },
+  "dependencies": {
+    "@nx/next": "22.7.0",
+    "@nx/node": "22.7.0",
+    "@nx/react": "22.7.0",
+    "cors": "2.8.6",
+    "dotenv": "17.4.2",
+    "express": "5.2.1",
+    "mongoose": "9.5.0",
+    "next": "16.2.4",
+    "react": "19.2.5",
+    "react-dom": "19.2.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@nx/esbuild": "22.7.0",
+    "@nx/eslint": "22.7.0",
+    "@nx/eslint-plugin": "22.7.0",
+    "@nx/js": "22.7.0",
+    "@swc-node/register": "1.11.1",
+    "@swc/core": "1.15.32",
+    "@types/cors": "2.8.19",
+    "@types/express": "5.0.6",
+    "@types/node": "25.6.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "autoprefixer": "10.5.0",
+    "esbuild": "latest",
+    "eslint": "10.2.1",
+    "nx": "22.7.0",
+    "postcss": "8.5.12",
+    "prettier": "3.8.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "latest",
+    "typescript-eslint": "^8.59.1"
+  }
+}
