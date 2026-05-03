@@ -9,7 +9,7 @@ User
   -> Next.js web app
   -> API client
   -> Express API
-  -> PostgreSQL database
+  -> Neo4j graph database
   -> API response
   -> UI state update
 ```
@@ -28,7 +28,7 @@ User
 2. Middleware handles CORS and JSON parsing.
 3. Route modules under `apps/api/src/routes` receive requests.
 4. Controllers and services handle business logic.
-5. Database access goes through the PostgreSQL integration layer.
+5. Database access goes through the Neo4j integration layer.
 
 ## Health Check
 

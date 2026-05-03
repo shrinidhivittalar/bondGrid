@@ -1,38 +1,61 @@
-# Schema
+# Neo4j Graph Schema
 
-This document tracks the PostgreSQL schema direction for `bond_grid`.
+This document tracks the Neo4j graph schema direction for `bond_grid`.
 
 ## Reference
 
-See [PostgreSQL Database Reference](./POSTGRES-DB.md) for setup notes.
+See [Neo4j Database Reference](./NEO4J-DB.md) for setup notes.
 
 ## Conventions
 
-- Use `uuid` primary keys for public records.
-- Use `timestamptz` for timestamps.
-- Use `created_at` and `updated_at` on mutable tables.
-- Prefer explicit foreign keys.
-- Name tables with lowercase plural nouns.
+- Use `personId` as the stable public identifier for `Person` nodes.
+- Use ISO timestamp strings for `createdAt` and `updatedAt`.
+- Keep relationship types predefined in backend metadata.
+- Create inverse relationship pairs in one backend transaction.
+- Keep graph write validation in API services, not in the frontend.
 
-## Initial Tables
+## Initial Constraints
 
-```sql
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+```cypher
+CREATE CONSTRAINT person_id_unique IF NOT EXISTS
+FOR (person:Person)
+REQUIRE person.personId IS UNIQUE;
 
-CREATE TABLE users (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  email text NOT NULL UNIQUE,
-  name text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
+CREATE CONSTRAINT person_phone_unique IF NOT EXISTS
+FOR (person:Person)
+REQUIRE person.phone IS UNIQUE;
+
+CREATE INDEX person_normalized_name IF NOT EXISTS
+FOR (person:Person)
+ON (person.normalizedName);
 ```
 
-## Future Tables
+## Core Node
 
-- `sessions`
-- `roles`
-- `bond_records`
-- `grid_snapshots`
-- `audit_events`
+```cypher
+(:Person {
+  personId,
+  name,
+  normalizedName,
+  phone,
+  age,
+  gender,
+  occupation,
+  role,
+  location,
+  notes,
+  status,
+  createdAt,
+  updatedAt
+})
+```
+
+## Core Relationships
+
+People are connected by predefined relationship types such as `FATHER_OF`,
+`MOTHER_OF`, `CHILD_OF`, `HUSBAND_OF`, `WIFE_OF`, `FRIEND_OF`, `BROTHER_OF`,
+`SISTER_OF`, `COUSIN_OF`, and `RELATED_TO`.
+
+Every logical user-created relationship should carry a `relationshipGroupId` so
+the forward and inverse edges can be edited or deleted together.
 

@@ -24,7 +24,7 @@ This document captures implementation-level expectations for `bond_grid`.
 
 ## Database
 
-- PostgreSQL is the target database.
-- Schema changes should be represented by migrations once a migration tool is
-  selected.
+- Neo4j is the target graph database.
+- Graph schema changes should be represented by startup-safe constraint/index
+  creation and documented Cypher once a migration workflow is selected.
 

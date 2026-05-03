@@ -10,7 +10,7 @@ Nx monorepo with a Next.js web app in `apps/web` and an Express API in `apps/api
 - [Data API](./docs/DATA_API.md)
 - [Phase scope](./docs/PHASE_SCOPE.md)
 - [Project structure](./docs/PROJECT-STRUCTURE.md)
-- [PostgreSQL database reference](./docs/POSTGRES-DB.md)
+- [Neo4j database reference](./docs/NEO4J-DB.md)
 - [Product requirements](./docs/PRD.md)
 - [Schema](./docs/schema.md)
 - [Setup Nx repo](./docs/Setup-nx-repo.md)

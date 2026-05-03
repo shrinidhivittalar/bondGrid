@@ -1,10 +1,16 @@
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
-import mongoose from 'mongoose';
+import path from 'path';
 
+import { closeNeo4jDriver, verifyNeo4jConnectivity } from './config/neo4j';
+import { graphRouter } from './routes/graph';
 import { healthRouter } from './routes/health';
+import { peopleRouter } from './routes/people';
+import { relationshipsRouter } from './routes/relationships';
+import { ensureGraphSchema } from './services/graphSchemaService';
 
+dotenv.config({ path: path.resolve(process.cwd(), 'apps/api/.env') });
 dotenv.config();
 
 const app = express();
@@ -15,18 +21,30 @@ app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
 
 app.use('/api/health', healthRouter);
+app.use('/api/graph', graphRouter);
+app.use('/api/people', peopleRouter);
+app.use('/api/relationships', relationshipsRouter);
 
 async function bootstrap() {
-  const mongoUri = process.env.MONGODB_URI;
-
-  if (mongoUri) {
-    await mongoose.connect(mongoUri);
-    console.log('Connected to MongoDB');
+  if (process.env.NEO4J_URI) {
+    await verifyNeo4jConnectivity();
+    await ensureGraphSchema();
+    console.log('Connected to Neo4j');
   }
 
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     console.log(`API listening at http://localhost:${port}`);
   });
+
+  async function shutdown() {
+    server.close(async () => {
+      await closeNeo4jDriver();
+      process.exit(0);
+    });
+  }
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
 bootstrap().catch((error) => {

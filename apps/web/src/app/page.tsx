@@ -1,6 +1,8 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+
+import { apiClient } from '../services/apiClient';
 
 type RelationshipCategory = 'family' | 'friend' | 'social';
 type Role = 'Admin' | 'Volunteer' | 'Viewer';
@@ -40,6 +42,42 @@ type Connection = {
   type: string;
   createdBy: string;
   updatedAt: string;
+};
+
+type NetworkPerson = {
+  personId: string;
+  name: string;
+  phone?: string;
+  age?: number;
+  gender?: Person['gender'];
+  occupation?: string;
+  role?: Role;
+  location?: string;
+  notes?: string;
+  status?: PersonStatus;
+  createdAt?: string;
+};
+
+type NetworkConnection = {
+  fromPersonId: string;
+  toPersonId: string;
+  relationshipType: string;
+  relationshipLabel: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type NetworkResponse = {
+  people: NetworkPerson[];
+  connections: NetworkConnection[];
+};
+
+type SearchPeopleResponse = {
+  searchContextId: string;
+};
+
+type CreatePersonResponse = {
+  person: NetworkPerson;
 };
 
 type IconName =
@@ -377,6 +415,26 @@ export default function IndexPage() {
   const [activeModal, setActiveModal] = useState<'person' | 'connection' | 'merge' | null>(null);
   const [formMessage, setFormMessage] = useState('');
 
+  async function loadNetwork() {
+    const network = await apiClient.get<NetworkResponse>('/api/graph/network');
+
+    if (network.people.length === 0) {
+      return;
+    }
+
+    const nextPeople = network.people.map(toUiPerson);
+
+    setPeople(nextPeople);
+    setConnections(network.connections.map(toUiConnection));
+    setSelectedId((current) => (nextPeople.some((person) => person.id === current) ? current : nextPeople[0].id));
+  }
+
+  useEffect(() => {
+    loadNetwork().catch(() => {
+      setFormMessage('Using demo data because the API graph could not be loaded.');
+    });
+  }, []);
+
   const typeById = useMemo(
     () => new Map(relationshipTypes.map((type) => [type.id, type])),
     [],
@@ -478,7 +536,7 @@ export default function IndexPage() {
     setSelectedId(fallback?.id ?? '');
   }
 
-  function addPerson(event: FormEvent<HTMLFormElement>) {
+  async function addPerson(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const name = String(form.get('name') ?? '').trim();
@@ -494,30 +552,32 @@ export default function IndexPage() {
       return;
     }
 
-    const id = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
-    const nextPerson: Person = {
-      id,
-      name,
-      phone,
-      age: Number(form.get('age')) || undefined,
-      gender: String(form.get('gender')) as Person['gender'],
-      occupation: String(form.get('occupation') ?? 'Not specified'),
-      role: String(form.get('role')) as Role,
-      location: String(form.get('location') ?? 'Location pending'),
-      joined: 'Today',
-      notes: String(form.get('notes') ?? 'Progressive profile entry started.'),
-      status: 'Partial',
-      x: 160 + ((people.length * 120) % 680),
-      y: 180 + ((people.length * 90) % 430),
-    };
+    try {
+      const search = await apiClient.get<SearchPeopleResponse>(`/api/people/search?q=${encodeURIComponent(name)}`);
+      const result = await apiClient.post<CreatePersonResponse>('/api/people', {
+        searchContextId: search.searchContextId,
+        name,
+        phone,
+        age: Number(form.get('age')) || undefined,
+        gender: String(form.get('gender')),
+        occupation: String(form.get('occupation') ?? ''),
+        role: String(form.get('role')),
+        location: String(form.get('location') ?? ''),
+        notes: String(form.get('notes') ?? ''),
+      });
+      const nextPerson = toUiPerson(result.person, people.length);
 
-    setPeople((current) => [...current, nextPerson]);
-    setSelectedId(id);
-    setActiveModal(null);
-    setFormMessage('');
+      setPeople((current) => (current.some((person) => person.id === nextPerson.id) ? current : [...current, nextPerson]));
+      setSelectedId(nextPerson.id);
+      await loadNetwork();
+      setActiveModal(null);
+      setFormMessage('');
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : 'Could not create person.');
+    }
   }
 
-  function addConnection(event: FormEvent<HTMLFormElement>) {
+  async function addConnection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const from = String(form.get('from'));
@@ -543,20 +603,19 @@ export default function IndexPage() {
       return;
     }
 
-    setConnections((current) => [
-      ...current,
-      {
-        id: `c-${Date.now()}`,
-        from,
-        to,
-        type,
-        createdBy: 'Guruji',
-        updatedAt: 'Today',
-      },
-    ]);
-    setSelectedId(from);
-    setActiveModal(null);
-    setFormMessage('');
+    try {
+      await apiClient.post('/api/relationships', {
+        fromPersonId: from,
+        toPersonId: to,
+        relationshipType: type,
+      });
+      await loadNetwork();
+      setSelectedId(from);
+      setActiveModal(null);
+      setFormMessage('');
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : 'Could not create relationship.');
+    }
   }
 
   function mergeDuplicate() {
@@ -1265,6 +1324,35 @@ function Icon({ name, className = '' }: { name: IconName; className?: string }) 
 
 function samePair(connection: Connection, from: string, to: string) {
   return (connection.from === from && connection.to === to) || (connection.from === to && connection.to === from);
+}
+
+function toUiPerson(person: NetworkPerson, index = 0): Person {
+  return {
+    id: person.personId,
+    name: person.name,
+    phone: person.phone ?? 'Not provided',
+    age: person.age,
+    gender: person.gender ?? 'Other',
+    occupation: person.occupation ?? 'Not specified',
+    role: person.role ?? 'Viewer',
+    location: person.location ?? 'Location pending',
+    joined: person.createdAt ? new Date(person.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Today',
+    notes: person.notes ?? 'Progressive profile entry started.',
+    status: person.status ?? 'Partial',
+    x: 160 + ((index * 170) % 720),
+    y: 140 + ((index * 120) % 520),
+  };
+}
+
+function toUiConnection(connection: NetworkConnection, index: number): Connection {
+  return {
+    id: `${connection.fromPersonId}-${connection.toPersonId}-${index}`,
+    from: connection.fromPersonId,
+    to: connection.toPersonId,
+    type: connection.relationshipType,
+    createdBy: 'BondGrid API',
+    updatedAt: connection.updatedAt ? new Date(connection.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'Today',
+  };
 }
 
 function capitalize(value: string) {

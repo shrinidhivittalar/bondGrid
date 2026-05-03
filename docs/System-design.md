@@ -2,14 +2,14 @@
 
 ## Overview
 
-`bond_grid` is split into a browser client, an API server, and a PostgreSQL
+`bond_grid` is split into a browser client, an API server, and a Neo4j graph
 database.
 
 ```text
 Browser
   -> Next.js app
   -> Express API
-  -> PostgreSQL
+  -> Neo4j
 ```
 
 ## Components
@@ -24,7 +24,7 @@ Owns request validation, business logic, authentication, and database access.
 
 ### Database
 
-Stores application state in PostgreSQL.
+Stores people as nodes and relationships as typed graph edges in Neo4j.
 
 ## Deployment Shape
 

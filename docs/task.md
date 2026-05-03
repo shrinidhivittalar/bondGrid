@@ -8,13 +8,20 @@
 - Add health route.
 - Add environment examples.
 - Add documentation structure.
+- Add Neo4j package and connection config.
+- Use Neo4j driver lifecycle during API bootstrap.
+- Add graph constraint/index setup.
+- Add people search, create, detail, and update API foundation.
+- Add relationship create, list, and delete API foundation.
+- Add inverse relationship pair creation.
+- Add relationship validation for duplicates, self-links, parent limits, and family cycles.
+- Add graph network endpoint for the frontend.
+- Wire frontend initial graph load, person creation, and relationship creation to the API.
 
 ## Next
 
-- Add PostgreSQL package and connection config.
-- Replace MongoDB bootstrap when PostgreSQL implementation begins.
-- Pick ORM or query builder.
-- Add migrations folder.
+- Add relationship edit by `relationshipGroupId`.
+- Replace remaining local-only delete and merge UI behavior with API-backed flows.
 - Add first product workflow.
 
 ## Later

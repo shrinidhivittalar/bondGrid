@@ -163,7 +163,7 @@ where practical.
 | Frontend | React, Next.js, Tailwind CSS | UI and styling |
 | Graph UI | React Flow | Interactive graph visualization |
 | Backend | Node.js, Express in current repo | API and business logic |
-| Database | PostgreSQL | Relational data storage |
+| Database | Neo4j | Graph data storage for people and relationships |
 
 ## Success Metrics
 

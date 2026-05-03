@@ -140,11 +140,11 @@ function PageHeader({ title, description }: PageHeaderProps) {
 
 ### Database Standards
 
-- PostgreSQL is the target database.
-- Use UUID primary keys for public records.
-- Use foreign keys for relationships.
-- Store relationship types in database-managed tables.
-- Add migrations before production data is introduced.
+- Neo4j is the target graph database.
+- Use `personId` as the public identifier for `Person` nodes.
+- Store people as nodes and bonds as typed relationships.
+- Keep relationship types in backend-managed metadata.
+- Add graph constraints and indexes before production data is introduced.
 - Keep `.env.example` files in sync with required environment variables.
 
 ### Graph UI Standards

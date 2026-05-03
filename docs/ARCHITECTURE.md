@@ -1,6 +1,6 @@
 # Architecture
 
-`bond_grid` is an Nx monorepo with a Next.js frontend and an Express API.
+`bond_grid` is an Nx monorepo with a Next.js frontend, an Express API, and a Neo4j graph backend.
 
 ## Applications
 
@@ -24,10 +24,10 @@ docs      -> product and engineering documentation
 - Routes: `apps/api/src/routes`
 - Controllers: `apps/api/src/controllers`
 - Services: `apps/api/src/services`
-- Database target: PostgreSQL
+- Database target: Neo4j
 
 ## Database
 
-PostgreSQL is the target relational database. See
-[PostgreSQL Database Reference](./POSTGRES-DB.md).
+Neo4j is the graph database of record. See
+[Neo4j Database Reference](./NEO4J-DB.md).
 

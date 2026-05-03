@@ -1,4 +1,4 @@
-# Phase Scope
+x   x# Phase Scope
 
 This document defines the initial delivery phases.
 
@@ -8,14 +8,14 @@ This document defines the initial delivery phases.
 - Next.js web app
 - Express API
 - Local environment examples
-- PostgreSQL documentation
+- Neo4j documentation
 - Health check route
 
 ## Phase 2: Database Integration
 
-- Add PostgreSQL driver or ORM
-- Add migration workflow
-- Replace MongoDB bootstrap
+- Add Neo4j driver and connection config
+- Add graph constraint/index setup
+- Use Neo4j driver lifecycle during API bootstrap
 - Add database health validation
 - Document schema decisions in [schema.md](./schema.md)
 

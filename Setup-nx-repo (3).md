@@ -11,7 +11,7 @@ A single doc for new teammates: from empty folder to a running **Next.js** + **E
 **Nx** = one repo, many apps. Here, **`apps/web`** and **`apps/api`** share one root install and the same Nx commands (`npx nx run …`). You get **web + API in one place**, **shared tooling** (TypeScript, lint), and **caching** so builds stay fast. No need to master Nx first—use the steps below.
 
 - **Node.js** 20+ and **npm** 10+ (install from nodejs.org or use a version manager).
-- **MongoDB** running locally or a cloud URI (Atlas) for the API to store data.
+- **Neo4j** running locally or a cloud URI for the API to store graph data.
 - **Web UI stack:** **[shadcn/ui](https://ui.shadcn.com/) is mandatory for `apps/web`** — build screens and shared UI with Shadcn components (on top of Tailwind + React). Do not introduce a second ad-hoc component library for the same job.
 - Optional later: S3, SMTP, SMS — not required to boot the dev servers.
 - **Folder name:** replace **`your-app-name`** in every command below with your real workspace folder (e.g. `nx-workspace`). Same name in `npx create…` and `cd …`.
@@ -74,7 +74,7 @@ Create the API with **esbuild** as the bundler (same as this repo):
 npx nx g @nx/node:app api --directory=apps/api --bundler=esbuild
 ```
 
-Add server libraries to the **root** `package.json` `dependencies` (e.g. `express`, `cors`, `dotenv`, `mongoose`), then:
+Add server libraries to the **root** `package.json` `dependencies` (e.g. `express`, `cors`, `dotenv`, `neo4j-driver`), then:
 
 ```bash
 npm install
@@ -96,7 +96,7 @@ Create these **only on your machine**; add the filenames to **`apps/api/.gitigno
 
 | File | Purpose |
 |------|---------|
-| `apps/api/.env` | `PORT`, MongoDB URI, JWT secrets, SMTP, Twilio, AWS keys, etc. |
+| `apps/api/.env` | `PORT`, Neo4j URI/credentials, JWT secrets, SMTP, Twilio, AWS keys, etc. |
 | `apps/web/.env.local` | `NEXT_PUBLIC_API_URL` pointing at the API in staging/production. **Local dev** often works without it because `apiClient` falls back to `http://localhost:3333` when you open the site on localhost. |
 | (optional) | `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_SITE_URL` for metadata and sitemap, if the app uses them. |
 
@@ -104,7 +104,7 @@ Create these **only on your machine**; add the filenames to **`apps/api/.gitigno
 
 Add **template files** named **`.env.example`** next to where the real file lives, and **commit** them. They should list **every variable name** the app reads, with **fake or empty values** and short comments—**no real passwords, keys, or production URLs.**
 
-- **`apps/api/.env.example`** — same keys as `apps/api/.env` (e.g. `PORT=`, `MONGODB_URI=`, `JWT_SECRET=`, …). New developers copy: `cp apps/api/.env.example apps/api/.env` and fill in real values.
+- **`apps/api/.env.example`** — same keys as `apps/api/.env` (e.g. `PORT=`, `NEO4J_URI=`, `NEO4J_USERNAME=`, `NEO4J_PASSWORD=`, `JWT_SECRET=`, ...). New developers copy: `cp apps/api/.env.example apps/api/.env` and fill in real values.
 - **`apps/web/.env.example`** (or `.env.local.example` if you prefer) — same idea for `NEXT_PUBLIC_*` keys used by the web app.
 
 Keep examples in sync when you add a new `process.env` key in code.
@@ -147,7 +147,7 @@ For production-style builds, use `npx nx run web:build` and `npx nx run @nx-work
 1. The browser loads the **Next.js** app (usually port **3000**).
 2. **Axios** in `apps/web/src/services/apiClient.ts` is the main HTTP client. It sets `baseURL` from `NEXT_PUBLIC_API_URL` or, in dev, often **`http://localhost:3333`**.
 3. The **Express** server in `apps/api` listens on **`PORT`** and exposes JSON routes under `/api/...` (e.g. `/api/auth`, `/api/user`, `/api/admin`, `/api/sitemap`).
-4. **MongoDB** is connected from `apps/api` (see `config` + Mongoose `models`).
+4. **Neo4j** is connected from `apps/api` (see `config` + graph services).
 5. **API docs (Swagger):** in this project, **GET `/api-docs`** on the API host when Swagger is enabled in `main.ts`.
 
 That is the full line from **React page → apiClient → Express route → database**.
@@ -287,4 +287,4 @@ There is no top-level `libs/` in this layout. For more detail, see **`docs/PROJE
 - **Admin back office** — `/api/admin/...`
 - **Swagger** — `http://<api-host>:<port>/api-docs` when enabled.
 
-**If something fails to start:** confirm MongoDB is reachable with the same URI as in `apps/api/.env`, both terminals are using the same repo root, and no other process is using the same `PORT` or the Next default port.
+**If something fails to start:** confirm Neo4j is reachable with the same URI and credentials as in `apps/api/.env`, both terminals are using the same repo root, and no other process is using the same `PORT` or the Next default port.

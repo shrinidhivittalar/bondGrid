@@ -15,12 +15,15 @@
           "format": [
             "cjs"
           ],
-          "bundle": false,
+          "bundle": true,
           "main": "apps/api/src/main.ts",
           "tsConfig": "apps/api/tsconfig.app.json",
           "assets": [
             "apps/api/src/assets"
-          ]
+          ],
+          "outExtension": {
+            ".js": ".cjs"
+          }
         }
       },
       "serve": {
