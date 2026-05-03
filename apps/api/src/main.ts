@@ -8,6 +8,7 @@ import { graphRouter } from './routes/graph';
 import { healthRouter } from './routes/health';
 import { peopleRouter } from './routes/people';
 import { relationshipsRouter } from './routes/relationships';
+import { mergeRouter } from './routes/merge';
 import { ensureGraphSchema } from './services/graphSchemaService';
 
 dotenv.config({ path: path.resolve(process.cwd(), 'apps/api/.env') });
@@ -24,6 +25,7 @@ app.use('/api/health', healthRouter);
 app.use('/api/graph', graphRouter);
 app.use('/api/people', peopleRouter);
 app.use('/api/relationships', relationshipsRouter);
+app.use('/api/merge', mergeRouter);
 
 async function bootstrap() {
   if (process.env.NEO4J_URI) {

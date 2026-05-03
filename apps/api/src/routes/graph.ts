@@ -27,6 +27,7 @@ graphRouter.get('/network', async (_request, response) => {
              toPersonId: to.personId,
              relationshipType: relationship.relationshipCode,
              relationshipLabel: relationship.relationshipLabel,
+             relationshipGroupId: relationship.relationshipGroupId,
              createdAt: relationship.createdAt,
              updatedAt: relationship.updatedAt
            }) AS relationshipPairs

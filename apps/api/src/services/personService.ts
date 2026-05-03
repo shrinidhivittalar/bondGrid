@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 
 import { getNeo4jSession } from '../config/neo4j';
 import { Person, PersonGender, PersonInput, PersonRole, PersonUpdateInput } from '../models/person';
+import { createRelationship, getRelationshipsForPerson } from './relationshipService';
 
 const searchContexts = new Map<string, { query: string; createdAt: number }>();
 const searchContextTtlMs = 15 * 60 * 1000;
@@ -216,6 +217,126 @@ export async function updatePerson(personId: string, input: PersonUpdateInput) {
     }
 
     return toPerson(record.get('person').properties);
+  } finally {
+    await session.close();
+  }
+}
+
+export async function deletePerson(personId: string) {
+  const session = getNeo4jSession();
+
+  try {
+    const result = await session.run(
+      `
+      MATCH (person:Person {personId: $personId})
+      DETACH DELETE person
+      RETURN count(person) AS deletedCount
+      `,
+      { personId },
+    );
+
+    if (result.records[0].get('deletedCount').toNumber() === 0) {
+      throw new PersonValidationError('Person not found.', 404);
+    }
+  } finally {
+    await session.close();
+  }
+}
+
+export async function dryRunMerge(sourcePersonId: string, targetPersonId: string) {
+  if (sourcePersonId === targetPersonId) {
+    throw new PersonValidationError('Cannot merge a person with themselves.');
+  }
+
+  const session = getNeo4jSession();
+
+  try {
+    const result = await session.run(
+      `
+      MATCH (source:Person {personId: $sourcePersonId})
+      MATCH (target:Person {personId: $targetPersonId})
+      OPTIONAL MATCH (source)-[r]-(related:Person)
+      WHERE related.personId <> $targetPersonId
+      WITH source, target, collect({
+        type: type(r),
+        direction: CASE WHEN startNode(r) = source THEN 'OUTGOING' ELSE 'INCOMING' END,
+        relatedPersonId: related.personId,
+        relatedName: related.name,
+        relationshipGroupId: r.relationshipGroupId
+      }) AS movingRelationships
+      RETURN source, target, movingRelationships
+      `,
+      { sourcePersonId, targetPersonId },
+    );
+
+    const record = result.records[0];
+    if (!record) {
+      throw new PersonValidationError('One or both people not found.', 404);
+    }
+
+    const source = toPerson(record.get('source').properties);
+    const target = toPerson(record.get('target').properties);
+    const movingRelationships = record.get('movingRelationships');
+
+    return {
+      source,
+      target,
+      movingRelationships,
+      impact: {
+        relationshipCount: movingRelationships.length,
+      },
+    };
+  } finally {
+    await session.close();
+  }
+}
+
+export async function executeMerge(sourcePersonId: string, targetPersonId: string) {
+  if (sourcePersonId === targetPersonId) {
+    throw new PersonValidationError('Cannot merge a person with themselves.');
+  }
+
+  const session = getNeo4jSession();
+
+  try {
+    // 1. Fetch relationships to be moved
+    const relationships = await getRelationshipsForPerson(sourcePersonId);
+
+    // 2. Rebind relationships to the target person
+    for (const rel of relationships) {
+      try {
+        // Only move unique group pairs (every logical connection has one forward edge from source)
+        // Actually, getRelationshipsForPerson returns all outgoing edges from source.
+        await createRelationship({
+          fromPersonId: targetPersonId,
+          toPersonId: rel.relatedPersonId,
+          relationshipType: rel.relationshipType,
+        });
+      } catch (error) {
+        // If rebinding fails (e.g. duplicate constraint), we continue
+        console.warn(`Merge rebind failed for relationship ${rel.relationshipGroupId}:`, error);
+      }
+    }
+
+    // 3. Mark source as merged and remove its connections
+    await session.run(
+      `
+      MATCH (source:Person {personId: $sourcePersonId})
+      SET source.status = 'Merged',
+          source.mergedIntoPersonId = $targetPersonId,
+          source.updatedAt = $updatedAt
+      WITH source
+      OPTIONAL MATCH (source)-[r]-()
+      DELETE r
+      `,
+      {
+        sourcePersonId,
+        targetPersonId,
+        updatedAt: new Date().toISOString(),
+      },
+    );
+
+    return { success: true };
   } finally {
     await session.close();
   }

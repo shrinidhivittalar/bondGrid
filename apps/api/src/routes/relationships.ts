@@ -4,6 +4,7 @@ import {
   createRelationship,
   deleteRelationship,
   getRelationshipsForPerson,
+  updateRelationship,
   RelationshipValidationError,
 } from '../services/relationshipService';
 
@@ -28,6 +29,14 @@ relationshipsRouter.get('/person/:personId', async (request, response) => {
 relationshipsRouter.delete('/:relationshipGroupId', async (request, response) => {
   try {
     response.json(await deleteRelationship(request.params.relationshipGroupId));
+  } catch (error) {
+    sendRelationshipError(response, error);
+  }
+});
+
+relationshipsRouter.patch('/:relationshipGroupId', async (request, response) => {
+  try {
+    response.json(await updateRelationship(request.params.relationshipGroupId, request.body));
   } catch (error) {
     sendRelationshipError(response, error);
   }

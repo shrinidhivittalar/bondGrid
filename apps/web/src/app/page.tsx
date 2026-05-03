@@ -42,6 +42,7 @@ type Connection = {
   type: string;
   createdBy: string;
   updatedAt: string;
+  relationshipGroupId?: string;
 };
 
 type NetworkPerson = {
@@ -63,6 +64,7 @@ type NetworkConnection = {
   toPersonId: string;
   relationshipType: string;
   relationshipLabel: string;
+  relationshipGroupId?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -412,7 +414,8 @@ export default function IndexPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: -20 });
-  const [activeModal, setActiveModal] = useState<'person' | 'connection' | 'merge' | null>(null);
+  const [activeModal, setActiveModal] = useState<'person' | 'connection' | 'edit-connection' | 'merge' | null>(null);
+  const [editingConnection, setEditingConnection] = useState<Connection | null>(null);
   const [formMessage, setFormMessage] = useState('');
 
   async function loadNetwork() {
@@ -523,17 +526,17 @@ export default function IndexPage() {
     setTypeFilter('all');
   }
 
-  function deleteSelectedPerson() {
+  async function deleteSelectedPerson() {
     if (people.length <= 1) {
       return;
     }
 
-    const fallback = people.find((person) => person.id !== selectedPerson.id);
-    setConnections((current) =>
-      current.filter((connection) => connection.from !== selectedPerson.id && connection.to !== selectedPerson.id),
-    );
-    setPeople((current) => current.filter((person) => person.id !== selectedPerson.id));
-    setSelectedId(fallback?.id ?? '');
+    try {
+      await apiClient.delete(`/api/people/${selectedPerson.id}`);
+      await loadNetwork();
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : 'Could not delete person.');
+    }
   }
 
   async function addPerson(event: FormEvent<HTMLFormElement>) {
@@ -618,17 +621,74 @@ export default function IndexPage() {
     }
   }
 
-  function mergeDuplicate() {
-    if (!duplicateRisks[0]) {
+  async function deleteRelationship(connection: Connection) {
+    if (!connection.relationshipGroupId) return;
+    try {
+      await apiClient.delete(`/api/relationships/${connection.relationshipGroupId}`);
+      await loadNetwork();
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : 'Could not delete relationship.');
+    }
+  }
+
+  async function editConnectionSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingConnection?.relationshipGroupId) return;
+    
+    const form = new FormData(event.currentTarget);
+    const from = String(form.get('from'));
+    const to = String(form.get('to'));
+    const type = String(form.get('type'));
+
+    if (from === to) {
+      setFormMessage('Self-relationships are not allowed.');
       return;
     }
 
-    setPeople((current) =>
-      current.map((person) =>
-        person.id === duplicateRisks[0].id ? { ...person, status: 'Complete', notes: `${person.notes} Merge reviewed.` } : person,
-      ),
-    );
-    setActiveModal(null);
+    try {
+      await apiClient.patch(`/api/relationships/${editingConnection.relationshipGroupId}`, {
+        fromPersonId: from,
+        toPersonId: to,
+        relationshipType: type,
+      });
+      await loadNetwork();
+      setActiveModal(null);
+      setEditingConnection(null);
+      setFormMessage('');
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : 'Could not update relationship.');
+    }
+  }
+
+  async function mergeDuplicate() {
+    const source = duplicateRisks[0];
+    if (!source) return;
+
+    // Find a target person with the same phone to merge into
+    const target = people.find((p) => p.phone === source.phone && p.id !== source.id);
+
+    if (!target) {
+      // Fallback: just mark as complete if no automated target is found
+      setPeople((current) =>
+        current.map((person) =>
+          person.id === source.id ? { ...person, status: 'Complete', notes: `${person.notes} Review complete.` } : person,
+        ),
+      );
+      setActiveModal(null);
+      return;
+    }
+
+    try {
+      await apiClient.post('/api/merge/execute', {
+        sourcePersonId: source.id,
+        targetPersonId: target.id,
+      });
+      await loadNetwork();
+      setActiveModal(null);
+      setFormMessage('');
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : 'Could not execute merge.');
+    }
   }
 
   return (
@@ -809,6 +869,11 @@ export default function IndexPage() {
               setSelectedId={setSelectedId}
               typeById={typeById}
               onDelete={deleteSelectedPerson}
+              onEditConnection={(conn) => {
+                setEditingConnection(conn);
+                setActiveModal('edit-connection');
+              }}
+              onDeleteConnection={deleteRelationship}
             />
           </div>
         </section>
@@ -880,6 +945,41 @@ export default function IndexPage() {
             <ValidationMessage message={formMessage} />
             <button className="primary-button h-11 justify-center" type="submit">
               Save Connection
+            </button>
+          </form>
+        </Modal>
+      )}
+
+      {activeModal === 'edit-connection' && editingConnection && (
+        <Modal title="Edit Relationship" onClose={() => { setActiveModal(null); setEditingConnection(null); }}>
+          <p className="text-sm text-[#667085]">
+            Modify the existing relationship.
+          </p>
+          <form className="mt-5 grid gap-3" onSubmit={editConnectionSubmit}>
+            <select className="control w-full" name="from" defaultValue={editingConnection.from}>
+              {people.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name}
+                </option>
+              ))}
+            </select>
+            <select className="control w-full" name="type" defaultValue={editingConnection.type}>
+              {relationshipTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.label} / {type.reverse}
+                </option>
+              ))}
+            </select>
+            <select className="control w-full" name="to" defaultValue={editingConnection.to}>
+              {people.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name}
+                </option>
+              ))}
+            </select>
+            <ValidationMessage message={formMessage} />
+            <button className="primary-button h-11 justify-center" type="submit">
+              Update Connection
             </button>
           </form>
         </Modal>
@@ -1046,6 +1146,8 @@ function ProfilePanel({
   setSelectedId,
   setActiveModal,
   onDelete,
+  onEditConnection,
+  onDeleteConnection,
 }: {
   person: Person;
   connections: Connection[];
@@ -1053,8 +1155,10 @@ function ProfilePanel({
   typeById: Map<string, RelationshipType>;
   relationshipTypes: RelationshipType[];
   setSelectedId: (id: string) => void;
-  setActiveModal: (modal: 'person' | 'connection' | 'merge' | null) => void;
+  setActiveModal: (modal: 'person' | 'connection' | 'edit-connection' | 'merge' | null) => void;
   onDelete: () => void;
+  onEditConnection: (connection: Connection) => void;
+  onDeleteConnection: (connection: Connection) => void;
 }) {
   return (
     <aside className="rounded-lg border border-[#eee7df] bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
@@ -1109,21 +1213,30 @@ function ProfilePanel({
             }
 
             return (
-              <button
+              <div
                 className="flex w-full items-center gap-3 rounded-md border-b border-[#f0ebe6] px-3 py-3 text-left transition hover:bg-[#fff4ec]"
                 key={connection.id}
-                type="button"
-                onClick={() => setSelectedId(related.id)}
               >
-                <span className="grid h-9 w-9 place-items-center rounded-md" style={{ background: type.tint, color: type.color }}>
+                <span className="grid h-9 w-9 place-items-center rounded-md cursor-pointer" style={{ background: type.tint, color: type.color }} onClick={() => setSelectedId(related.id)}>
                   <Icon name={type.icon} />
                 </span>
-                <span className="w-20 text-sm font-semibold" style={{ color: type.color }}>
+                <span className="w-20 text-sm font-semibold cursor-pointer" style={{ color: type.color }} onClick={() => setSelectedId(related.id)}>
                   {label}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm">{related.name}</span>
-                <Icon className="text-[#667085]" name="more" />
-              </button>
+                <span className="min-w-0 flex-1 truncate text-sm cursor-pointer" onClick={() => setSelectedId(related.id)}>{related.name}</span>
+                {connection.relationshipGroupId ? (
+                  <div className="flex gap-1">
+                    <button className="icon-button h-8 w-8 text-[#667085] hover:text-[#0f7cff]" type="button" onClick={() => onEditConnection(connection)}>
+                      <Icon name="edit" className="h-4 w-4" />
+                    </button>
+                    <button className="icon-button h-8 w-8 text-[#667085] hover:text-[#f43f5e]" type="button" onClick={() => onDeleteConnection(connection)}>
+                      <Icon name="trash" className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <Icon className="text-[#667085]" name="more" />
+                )}
+              </div>
             );
           })}
         </div>

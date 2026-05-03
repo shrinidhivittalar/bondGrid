@@ -191,6 +191,130 @@ export async function deleteRelationship(relationshipGroupId: string) {
   }
 }
 
+export async function updateRelationship(relationshipGroupId: string, input: RelationshipInput) {
+  const fromPersonId = asRequiredString(input.fromPersonId, 'fromPersonId');
+  const toPersonId = asRequiredString(input.toPersonId, 'toPersonId');
+  const relationshipCode = asRequiredString(input.relationshipType, 'relationshipType');
+  const definition = getRelationshipDefinition(relationshipCode);
+
+  if (!definition) {
+    throw new RelationshipValidationError('Relationship type is not supported.', 400);
+  }
+
+  if (fromPersonId === toPersonId) {
+    throw new RelationshipValidationError('A person cannot be connected to themselves.', 400);
+  }
+
+  const session = getNeo4jSession();
+
+  try {
+    return await session.executeWrite(async (transaction) => {
+      const peopleResult = await transaction.run(
+        `
+        MATCH (from:Person {personId: $fromPersonId})
+        MATCH (to:Person {personId: $toPersonId})
+        RETURN from, to
+        `,
+        { fromPersonId, toPersonId },
+      );
+
+      if (peopleResult.records.length === 0) {
+        throw new RelationshipValidationError('Both people must exist before a relationship can be updated.', 404);
+      }
+
+      const existingResult = await transaction.run(
+        `
+        MATCH ()-[relationship]->()
+        WHERE relationship.relationshipGroupId = $relationshipGroupId
+        RETURN relationship.createdAt AS createdAt
+        LIMIT 1
+        `,
+        { relationshipGroupId }
+      );
+
+      if (existingResult.records.length === 0) {
+         throw new RelationshipValidationError('Relationship not found.', 404);
+      }
+      
+      const createdAt = existingResult.records[0].get('createdAt') || new Date().toISOString();
+
+      const existingPair = await transaction.run(
+        `
+        MATCH (from:Person {personId: $fromPersonId})-[relationship]-(to:Person {personId: $toPersonId})
+        WHERE relationship.relationshipGroupId IS NOT NULL
+          AND relationship.relationshipGroupId <> $relationshipGroupId
+        RETURN relationship
+        LIMIT 1
+        `,
+        { fromPersonId, toPersonId, relationshipGroupId },
+      );
+
+      if (existingPair.records.length > 0) {
+        throw new RelationshipValidationError('These two people are already connected.', 409);
+      }
+
+      await transaction.run(
+        `
+        MATCH ()-[relationship]->()
+        WHERE relationship.relationshipGroupId = $relationshipGroupId
+        DELETE relationship
+        `,
+        { relationshipGroupId }
+      );
+
+      const parentChildPair = getParentChildPair(definition.code, fromPersonId, toPersonId);
+
+      if (parentChildPair) {
+        await validateParentChildRules(transaction, parentChildPair);
+      }
+
+      const now = new Date().toISOString();
+      const result = await transaction.run(
+        `
+        MATCH (from:Person {personId: $fromPersonId})
+        MATCH (to:Person {personId: $toPersonId})
+        CREATE (from)-[forward:${definition.neo4jType} {
+          relationshipGroupId: $relationshipGroupId,
+          relationshipCode: $relationshipCode,
+          relationshipLabel: $relationshipLabel,
+          inverseRelationshipCode: $inverseRelationshipCode,
+          createdAt: $createdAt,
+          updatedAt: $updatedAt
+        }]->(to)
+        CREATE (to)-[inverse:${definition.inverseNeo4jType} {
+          relationshipGroupId: $relationshipGroupId,
+          relationshipCode: $inverseRelationshipCode,
+          relationshipLabel: $inverseRelationshipLabel,
+          inverseRelationshipCode: $relationshipCode,
+          createdAt: $createdAt,
+          updatedAt: $updatedAt
+        }]->(from)
+        RETURN forward, inverse
+        `,
+        {
+          fromPersonId,
+          toPersonId,
+          relationshipGroupId,
+          relationshipCode: definition.code,
+          relationshipLabel: definition.label,
+          inverseRelationshipCode: definition.inverseCode,
+          inverseRelationshipLabel: definition.inverseLabel,
+          createdAt: createdAt,
+          updatedAt: now,
+        },
+      );
+
+      return {
+        relationshipGroupId,
+        forward: result.records[0].get('forward').properties,
+        inverse: result.records[0].get('inverse').properties,
+      };
+    });
+  } finally {
+    await session.close();
+  }
+}
+
 async function validateParentChildRules(
   transaction: { run: (query: string, parameters?: Record<string, unknown>) => Promise<{ records: unknown[] }> },
   pair: ParentChildPair,

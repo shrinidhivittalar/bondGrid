@@ -6,6 +6,7 @@ import {
   PersonValidationError,
   searchPeople,
   updatePerson,
+  deletePerson,
 } from '../services/personService';
 
 export const peopleRouter = Router();
@@ -44,6 +45,15 @@ peopleRouter.patch('/:personId', async (request, response) => {
     response.json({
       person: await updatePerson(request.params.personId, request.body),
     });
+  } catch (error) {
+    sendPersonError(response, error);
+  }
+});
+
+peopleRouter.delete('/:personId', async (request, response) => {
+  try {
+    await deletePerson(request.params.personId);
+    response.status(204).end();
   } catch (error) {
     sendPersonError(response, error);
   }
