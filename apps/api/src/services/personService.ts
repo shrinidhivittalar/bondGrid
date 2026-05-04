@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { getNeo4jSession } from '../config/neo4j';
 import { Person, PersonGender, PersonInput, PersonRole, PersonUpdateInput } from '../models/person';
 import { createRelationship, getRelationshipsForPerson } from './relationshipService';
+import { logActivity } from './auditService';
 
 const searchContexts = new Map<string, { query: string; createdAt: number }>();
 const searchContextTtlMs = 15 * 60 * 1000;
@@ -77,10 +78,17 @@ export async function createPerson(input: PersonInput, options: CreatePersonOpti
 
       const existingPerson = existing.records[0]?.get('person');
       if (existingPerson) {
+        const p = toPerson(existingPerson.properties);
+        await logActivity({
+          type: 'PERSON_CREATED',
+          description: `Resolved existing person ${p.name} via phone match`,
+          personIds: [p.personId],
+          metadata: { reusedExisting: true },
+        });
         return {
           created: false,
           reusedExisting: true,
-          person: toPerson(existingPerson.properties),
+          person: p,
         };
       }
     }
@@ -134,10 +142,19 @@ export async function createPerson(input: PersonInput, options: CreatePersonOpti
       toNeo4jProperties(person),
     );
 
+    const createdPerson = toPerson(result.records[0].get('person').properties);
+
+    await logActivity({
+      type: 'PERSON_CREATED',
+      description: `Created person ${createdPerson.name}`,
+      personIds: [createdPerson.personId],
+      metadata: { reusedExisting: false },
+    });
+
     return {
       created: true,
       reusedExisting: false,
-      person: toPerson(result.records[0].get('person').properties),
+      person: createdPerson,
     };
   } finally {
     await session.close();
@@ -211,12 +228,15 @@ export async function updatePerson(personId: string, input: PersonUpdateInput) {
       { personId, patch, updatedAt },
     );
 
-    const record = result.records[0];
-    if (!record) {
-      throw new PersonValidationError('Person not found.', 404);
-    }
+    const updated = toPerson(record.get('person').properties);
+    await logActivity({
+      type: 'PERSON_UPDATED',
+      description: `Updated profile for ${updated.name}`,
+      personIds: [updated.personId],
+      metadata: { patch },
+    });
 
-    return toPerson(record.get('person').properties);
+    return updated;
   } finally {
     await session.close();
   }
@@ -238,6 +258,12 @@ export async function deletePerson(personId: string) {
     if (result.records[0].get('deletedCount').toNumber() === 0) {
       throw new PersonValidationError('Person not found.', 404);
     }
+
+    await logActivity({
+      type: 'PERSON_DELETED',
+      description: `Deleted person ID ${personId}`,
+      personIds: [personId],
+    });
   } finally {
     await session.close();
   }
@@ -335,6 +361,13 @@ export async function executeMerge(sourcePersonId: string, targetPersonId: strin
         updatedAt: new Date().toISOString(),
       },
     );
+
+    await logActivity({
+      type: 'PEOPLE_MERGED',
+      description: `Merged person ID ${sourcePersonId} into ${targetPersonId}`,
+      personIds: [sourcePersonId, targetPersonId],
+      metadata: { sourcePersonId, targetPersonId, relationshipCount: relationships.length },
+    });
 
     return { success: true };
   } finally {

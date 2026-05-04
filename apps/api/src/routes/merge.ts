@@ -1,10 +1,13 @@
 import { Router } from 'express';
 
 import { dryRunMerge, executeMerge, PersonValidationError } from '../services/personService';
+import { requireAuth } from '../middleware/authMiddleware';
+import { useIdempotency } from '../middleware/idempotencyMiddleware';
 
 export const mergeRouter = Router();
+mergeRouter.use(useIdempotency());
 
-mergeRouter.post('/dry-run', async (request, response) => {
+mergeRouter.post('/dry-run', requireAuth('Admin'), async (request, response) => {
   const { sourcePersonId, targetPersonId } = request.body;
   
   if (!sourcePersonId || !targetPersonId) {
@@ -19,7 +22,7 @@ mergeRouter.post('/dry-run', async (request, response) => {
   }
 });
 
-mergeRouter.post('/execute', async (request, response) => {
+mergeRouter.post('/execute', requireAuth('Admin'), async (request, response) => {
   const { sourcePersonId, targetPersonId } = request.body;
   
   if (!sourcePersonId || !targetPersonId) {

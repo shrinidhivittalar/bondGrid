@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { getNeo4jSession } from '../config/neo4j';
 import { RelationshipInput, RelationshipSummary } from '../models/relationship';
 import { getRelationshipDefinition } from '../models/relationshipTypes';
+import { logActivity } from './auditService';
 
 const parentRelationshipCodes = new Set(['father', 'mother', 'son', 'daughter']);
 
@@ -110,11 +111,20 @@ export async function createRelationship(input: RelationshipInput) {
         },
       );
 
-      return {
+      const created = {
         relationshipGroupId,
         forward: result.records[0].get('forward').properties,
         inverse: result.records[0].get('inverse').properties,
       };
+
+      await logActivity({
+        type: 'RELATIONSHIP_CREATED',
+        description: `Connected person ${fromPersonId} to ${toPersonId} as ${definition.label}`,
+        personIds: [fromPersonId, toPersonId],
+        metadata: { fromPersonId, toPersonId, relationshipCode, relationshipGroupId },
+      });
+
+      return created;
     });
   } finally {
     await session.close();
@@ -181,6 +191,12 @@ export async function deleteRelationship(relationshipGroupId: string) {
     if (deletedCount === 0) {
       throw new RelationshipValidationError('Relationship not found.', 404);
     }
+
+    await logActivity({
+      type: 'RELATIONSHIP_DELETED',
+      description: `Deleted relationship group ${relationshipGroupId}`,
+      metadata: { relationshipGroupId, deletedCount },
+    });
 
     return {
       relationshipGroupId,
@@ -304,11 +320,20 @@ export async function updateRelationship(relationshipGroupId: string, input: Rel
         },
       );
 
-      return {
+      const updated = {
         relationshipGroupId,
         forward: result.records[0].get('forward').properties,
         inverse: result.records[0].get('inverse').properties,
       };
+
+      await logActivity({
+        type: 'RELATIONSHIP_UPDATED',
+        description: `Updated relationship group ${relationshipGroupId} between ${fromPersonId} and ${toPersonId}`,
+        personIds: [fromPersonId, toPersonId],
+        metadata: { fromPersonId, toPersonId, relationshipCode, relationshipGroupId },
+      });
+
+      return updated;
     });
   } finally {
     await session.close();

@@ -7,10 +7,13 @@ import {
   updateRelationship,
   RelationshipValidationError,
 } from '../services/relationshipService';
+import { requireAuth } from '../middleware/authMiddleware';
+import { useIdempotency } from '../middleware/idempotencyMiddleware';
 
 export const relationshipsRouter = Router();
+relationshipsRouter.use(useIdempotency());
 
-relationshipsRouter.post('/', async (request, response) => {
+relationshipsRouter.post('/', requireAuth('Volunteer'), async (request, response) => {
   try {
     response.status(201).json(await createRelationship(request.body));
   } catch (error) {
@@ -18,7 +21,7 @@ relationshipsRouter.post('/', async (request, response) => {
   }
 });
 
-relationshipsRouter.get('/person/:personId', async (request, response) => {
+relationshipsRouter.get('/person/:personId', requireAuth('Viewer'), async (request, response) => {
   try {
     response.json(await getRelationshipsForPerson(request.params.personId));
   } catch (error) {
@@ -26,7 +29,7 @@ relationshipsRouter.get('/person/:personId', async (request, response) => {
   }
 });
 
-relationshipsRouter.delete('/:relationshipGroupId', async (request, response) => {
+relationshipsRouter.delete('/:relationshipGroupId', requireAuth('Volunteer'), async (request, response) => {
   try {
     response.json(await deleteRelationship(request.params.relationshipGroupId));
   } catch (error) {
@@ -34,7 +37,7 @@ relationshipsRouter.delete('/:relationshipGroupId', async (request, response) =>
   }
 });
 
-relationshipsRouter.patch('/:relationshipGroupId', async (request, response) => {
+relationshipsRouter.patch('/:relationshipGroupId', requireAuth('Volunteer'), async (request, response) => {
   try {
     response.json(await updateRelationship(request.params.relationshipGroupId, request.body));
   } catch (error) {

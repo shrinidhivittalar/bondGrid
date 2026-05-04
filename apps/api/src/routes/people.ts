@@ -8,10 +8,13 @@ import {
   updatePerson,
   deletePerson,
 } from '../services/personService';
+import { requireAuth } from '../middleware/authMiddleware';
+import { useIdempotency } from '../middleware/idempotencyMiddleware';
 
 export const peopleRouter = Router();
+peopleRouter.use(useIdempotency());
 
-peopleRouter.get('/search', async (request, response) => {
+peopleRouter.get('/search', requireAuth('Viewer'), async (request, response) => {
   try {
     response.json(await searchPeople(request.query.q));
   } catch (error) {
@@ -19,7 +22,7 @@ peopleRouter.get('/search', async (request, response) => {
   }
 });
 
-peopleRouter.post('/', async (request, response) => {
+peopleRouter.post('/', requireAuth('Volunteer'), async (request, response) => {
   try {
     const result = await createPerson(request.body, {
       searchContextId: request.body?.searchContextId,
@@ -32,7 +35,7 @@ peopleRouter.post('/', async (request, response) => {
   }
 });
 
-peopleRouter.get('/:personId', async (request, response) => {
+peopleRouter.get('/:personId', requireAuth('Viewer'), async (request, response) => {
   try {
     response.json(await getPerson(request.params.personId));
   } catch (error) {
@@ -40,7 +43,7 @@ peopleRouter.get('/:personId', async (request, response) => {
   }
 });
 
-peopleRouter.patch('/:personId', async (request, response) => {
+peopleRouter.patch('/:personId', requireAuth('Volunteer'), async (request, response) => {
   try {
     response.json({
       person: await updatePerson(request.params.personId, request.body),
@@ -50,7 +53,7 @@ peopleRouter.patch('/:personId', async (request, response) => {
   }
 });
 
-peopleRouter.delete('/:personId', async (request, response) => {
+peopleRouter.delete('/:personId', requireAuth('Admin'), async (request, response) => {
   try {
     await deletePerson(request.params.personId);
     response.status(204).end();
