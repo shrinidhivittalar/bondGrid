@@ -1,9 +1,17 @@
 const fallbackBaseUrl = 'http://localhost:3333';
+const fallbackApiKey = 'admin-secret';
+
+function authHeaders(): Record<string, string> {
+  const key = process.env.NEXT_PUBLIC_API_KEY ?? fallbackApiKey;
+  return { 'x-api-key': key };
+}
 
 export const apiClient = {
   baseUrl: process.env.NEXT_PUBLIC_API_URL ?? fallbackBaseUrl,
   async get<T>(path: string): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`);
+    const response = await fetch(`${this.baseUrl}${path}`, {
+      headers: authHeaders(),
+    });
 
     if (!response.ok) {
       throw new Error(`Request failed: ${response.status}`);
@@ -16,6 +24,7 @@ export const apiClient = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders(),
       },
       body: JSON.stringify(body),
     });
@@ -32,6 +41,7 @@ export const apiClient = {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders(),
       },
       body: JSON.stringify(body),
     });
@@ -46,6 +56,7 @@ export const apiClient = {
   async delete<T>(path: string): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, {
       method: 'DELETE',
+      headers: authHeaders(),
     });
 
     if (!response.ok) {
