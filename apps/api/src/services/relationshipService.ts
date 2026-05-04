@@ -347,18 +347,22 @@ async function validateParentChildRules(
   const existingParent = await transaction.run(
     `
     MATCH (existingParent:Person)-[relationship]->(child:Person {personId: $childPersonId})
-    WHERE type(relationship) = $relationshipType
-    RETURN existingParent
+    WHERE type(relationship) IN ['FATHER_OF', 'MOTHER_OF']
+    RETURN relationship
     LIMIT 1
     `,
-    {
-      childPersonId: pair.childPersonId,
-      relationshipType: pair.parentType === 'mother' ? 'MOTHER_OF' : pair.parentType === 'father' ? 'FATHER_OF' : '',
-    },
+    { childPersonId: pair.childPersonId },
   );
 
-  if ((pair.parentType === 'father' || pair.parentType === 'mother') && existingParent.records.length > 0) {
-    throw new RelationshipValidationError(`A person can only have one ${pair.parentType}.`, 409);
+  if (existingParent.records.length > 0) {
+    const existingType = (existingParent.records[0] as { get: (k: string) => { type: string } }).get('relationship').type;
+    if (pair.parentType === 'father' || pair.parentType === 'mother') {
+      throw new RelationshipValidationError(`A person can only have one ${pair.parentType}.`, 409);
+    }
+    if (pair.parentType === 'parent') {
+      const label = existingType === 'FATHER_OF' ? 'father' : 'mother';
+      throw new RelationshipValidationError(`A person can only have one ${label}.`, 409);
+    }
   }
 
   const cycle = await transaction.run(

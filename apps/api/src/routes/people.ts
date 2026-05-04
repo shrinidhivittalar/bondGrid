@@ -37,7 +37,7 @@ peopleRouter.post('/', requireAuth('Volunteer'), async (request, response) => {
 
 peopleRouter.get('/:personId', requireAuth('Viewer'), async (request, response) => {
   try {
-    response.json(await getPerson(request.params.personId));
+    response.json(await getPerson(request.params.personId as string));
   } catch (error) {
     sendPersonError(response, error);
   }
@@ -46,7 +46,7 @@ peopleRouter.get('/:personId', requireAuth('Viewer'), async (request, response) 
 peopleRouter.patch('/:personId', requireAuth('Volunteer'), async (request, response) => {
   try {
     response.json({
-      person: await updatePerson(request.params.personId, request.body),
+      person: await updatePerson(request.params.personId as string, request.body),
     });
   } catch (error) {
     sendPersonError(response, error);
@@ -55,7 +55,7 @@ peopleRouter.patch('/:personId', requireAuth('Volunteer'), async (request, respo
 
 peopleRouter.delete('/:personId', requireAuth('Admin'), async (request, response) => {
   try {
-    await deletePerson(request.params.personId);
+    await deletePerson(request.params.personId as string);
     response.status(204).end();
   } catch (error) {
     sendPersonError(response, error);

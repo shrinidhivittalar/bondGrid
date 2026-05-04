@@ -9,9 +9,10 @@ mergeRouter.use(useIdempotency());
 
 mergeRouter.post('/dry-run', requireAuth('Admin'), async (request, response) => {
   const { sourcePersonId, targetPersonId } = request.body;
-  
+
   if (!sourcePersonId || !targetPersonId) {
-    return response.status(400).json({ error: { message: 'Source and target person IDs are required.' } });
+    response.status(400).json({ error: { message: 'Source and target person IDs are required.' } });
+    return;
   }
 
   try {
@@ -24,9 +25,10 @@ mergeRouter.post('/dry-run', requireAuth('Admin'), async (request, response) => 
 
 mergeRouter.post('/execute', requireAuth('Admin'), async (request, response) => {
   const { sourcePersonId, targetPersonId } = request.body;
-  
+
   if (!sourcePersonId || !targetPersonId) {
-    return response.status(400).json({ error: { message: 'Source and target person IDs are required.' } });
+    response.status(400).json({ error: { message: 'Source and target person IDs are required.' } });
+    return;
   }
 
   try {

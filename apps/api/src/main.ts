@@ -44,8 +44,11 @@ async function bootstrap() {
 
   async function shutdown() {
     server.close(async () => {
-      await closeNeo4jDriver();
-      process.exit(0);
+      try {
+        await closeNeo4jDriver();
+      } finally {
+        process.exit(0);
+      }
     });
   }
 

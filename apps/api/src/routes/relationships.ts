@@ -23,7 +23,7 @@ relationshipsRouter.post('/', requireAuth('Volunteer'), async (request, response
 
 relationshipsRouter.get('/person/:personId', requireAuth('Viewer'), async (request, response) => {
   try {
-    response.json(await getRelationshipsForPerson(request.params.personId));
+    response.json(await getRelationshipsForPerson(request.params.personId as string));
   } catch (error) {
     sendRelationshipError(response, error);
   }
@@ -31,7 +31,7 @@ relationshipsRouter.get('/person/:personId', requireAuth('Viewer'), async (reque
 
 relationshipsRouter.delete('/:relationshipGroupId', requireAuth('Volunteer'), async (request, response) => {
   try {
-    response.json(await deleteRelationship(request.params.relationshipGroupId));
+    response.json(await deleteRelationship(request.params.relationshipGroupId as string));
   } catch (error) {
     sendRelationshipError(response, error);
   }
@@ -39,7 +39,7 @@ relationshipsRouter.delete('/:relationshipGroupId', requireAuth('Volunteer'), as
 
 relationshipsRouter.patch('/:relationshipGroupId', requireAuth('Volunteer'), async (request, response) => {
   try {
-    response.json(await updateRelationship(request.params.relationshipGroupId, request.body));
+    response.json(await updateRelationship(request.params.relationshipGroupId as string, request.body));
   } catch (error) {
     sendRelationshipError(response, error);
   }

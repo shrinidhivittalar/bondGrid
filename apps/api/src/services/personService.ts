@@ -154,6 +154,7 @@ export async function createPerson(input: PersonInput, options: CreatePersonOpti
     return {
       created: true,
       reusedExisting: false,
+      noConnectionsWarning: true,
       person: createdPerson,
     };
   } finally {
@@ -228,6 +229,7 @@ export async function updatePerson(personId: string, input: PersonUpdateInput) {
       { personId, patch, updatedAt },
     );
 
+    const record = result.records[0];
     const updated = toPerson(record.get('person').properties);
     await logActivity({
       type: 'PERSON_UPDATED',
@@ -326,21 +328,24 @@ export async function executeMerge(sourcePersonId: string, targetPersonId: strin
 
   try {
     // 1. Fetch relationships to be moved
-    const relationships = await getRelationshipsForPerson(sourcePersonId);
+    const { relationships } = await getRelationshipsForPerson(sourcePersonId);
 
     // 2. Rebind relationships to the target person
+    const failedRebinds: Array<{ relationshipGroupId: string; relatedPersonId: string; reason: string }> = [];
+
     for (const rel of relationships) {
       try {
-        // Only move unique group pairs (every logical connection has one forward edge from source)
-        // Actually, getRelationshipsForPerson returns all outgoing edges from source.
         await createRelationship({
           fromPersonId: targetPersonId,
           toPersonId: rel.relatedPersonId,
           relationshipType: rel.relationshipType,
         });
       } catch (error) {
-        // If rebinding fails (e.g. duplicate constraint), we continue
-        console.warn(`Merge rebind failed for relationship ${rel.relationshipGroupId}:`, error);
+        failedRebinds.push({
+          relationshipGroupId: rel.relationshipGroupId,
+          relatedPersonId: rel.relatedPersonId,
+          reason: error instanceof Error ? error.message : 'Unknown error',
+        });
       }
     }
 
@@ -366,10 +371,20 @@ export async function executeMerge(sourcePersonId: string, targetPersonId: strin
       type: 'PEOPLE_MERGED',
       description: `Merged person ID ${sourcePersonId} into ${targetPersonId}`,
       personIds: [sourcePersonId, targetPersonId],
-      metadata: { sourcePersonId, targetPersonId, relationshipCount: relationships.length },
+      metadata: {
+        sourcePersonId,
+        targetPersonId,
+        relationshipCount: relationships.length,
+        reboundCount: relationships.length - failedRebinds.length,
+        failedRebindCount: failedRebinds.length,
+      },
     });
 
-    return { success: true };
+    return {
+      success: true,
+      reboundCount: relationships.length - failedRebinds.length,
+      failedRebinds,
+    };
   } finally {
     await session.close();
   }
